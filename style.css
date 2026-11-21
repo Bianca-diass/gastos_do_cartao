@@ -1,0 +1,236 @@
+/* ===== Cores e medidas (mude aqui para trocar o visual) ===== */
+:root{
+  --fundo: #f0fdf4;
+  --texto: #14352a;
+  --branco: #fff;
+
+  --verde-claro: #bbf7d0;
+  --verde-medio: #86efac;
+  --verde: #4ade80;
+  --verde-forte: #22c55e;
+  --verde-escuro: #166534;
+  --verde-texto: #052e16;
+
+  --whatsapp: #25d366;
+  --cinza: #e7efe9;
+  --cinza-texto: #5b7266;
+  --borda: #d5e6da;
+  --linha: #ecf5ef;
+  --vermelho: #b91c1c;
+  --vermelho-claro: #fee2e2;
+
+  --raio: 14px;
+  --raio-card: 20px;
+  --sombra: 0 8px 24px rgba(22, 101, 52, .10);
+}
+
+/* ===== Base ===== */
+*{
+  -webkit-tap-highlight-color: transparent;
+}
+
+body{
+  font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+}
+
+h1{
+  font-size: 26px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -.3px;
+}
+
+h2{
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+/* ===== Topo ===== */
+.topo{
+  background: linear-gradient(135deg, var(--verde-claro), var(--verde-medio));
+  color: var(--verde-texto);
+  text-align: center;
+  padding: 28px 16px 56px;
+  border-radius: 0 0 36px 36px;
+}
+
+.boas-vindas{
+  display: inline-block;
+  margin: 0 0 10px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  background: rgba(255, 255, 255, .55);
+  border-radius: 999px;
+}
+
+/* ===== Layout ===== */
+.wrap{
+  max-width: 520px;
+  margin: -34px auto 0;
+  padding: 0 16px 32px;
+}
+
+.card{
+  background: var(--branco);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-card);
+  padding: 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--sombra);
+}
+
+/* ===== Campos ===== */
+textarea,
+select,
+input,
+button{
+  font-family: inherit;
+}
+
+textarea,
+select,
+input{
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 17px;
+  padding: 14px;
+  color: var(--texto);
+  border: 1.5px solid var(--borda);
+  border-radius: var(--raio);
+  background: #fbfffc;
+}
+
+textarea:focus,
+select:focus,
+input:focus{
+  outline: none;
+  border-color: var(--verde-forte);
+  box-shadow: 0 0 0 4px rgba(74, 222, 128, .25);
+}
+
+textarea{
+  height: 120px;
+  resize: vertical;
+}
+
+/* ===== Botões ===== */
+button{
+  width: 100%;
+  margin-top: 12px;
+  padding: 15px;
+  font-size: 17px;
+  font-weight: 700;
+  border: 0;
+  border-radius: var(--raio);
+  background: var(--verde);
+  color: var(--verde-texto);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, .30);
+  transition: transform .1s, box-shadow .1s;
+}
+
+button:active{
+  transform: scale(.98);
+  box-shadow: none;
+}
+
+button.ok{
+  background: var(--verde-forte);
+}
+
+button.zap{
+  background: var(--whatsapp);
+  box-shadow: 0 4px 12px rgba(37, 211, 102, .30);
+}
+
+button.sec{
+  background: var(--cinza);
+  color: var(--texto);
+  box-shadow: none;
+}
+
+button.del{
+  width: auto;
+  margin: 0;
+  padding: 7px 11px;
+  font-size: 14px;
+  background: var(--vermelho-claro);
+  color: var(--vermelho);
+  box-shadow: none;
+}
+
+/* ===== Total ===== */
+.rotulo-total{
+  margin-top: 16px;
+  color: var(--cinza-texto);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.total{
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--verde-escuro);
+  letter-spacing: -.5px;
+}
+
+/* ===== Lista de gastos ===== */
+.item{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--linha);
+}
+
+.item:last-of-type{
+  border-bottom: 0;
+}
+
+.item span{
+  font-weight: 600;
+}
+
+.item small{
+  display: block;
+  margin-top: 2px;
+  color: var(--cinza-texto);
+  font-weight: 400;
+}
+
+.val{
+  font-weight: 800;
+  color: var(--verde-escuro);
+  white-space: nowrap;
+  margin-right: 6px;
+}
+
+/* ===== Aviso (ex.: EXTRATO BAIXADO COM SUCESSO!) ===== */
+.aviso{
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 30px);
+  max-width: 90%;
+  padding: 15px 22px;
+  background: var(--verde-escuro);
+  color: var(--branco);
+  font-weight: 700;
+  text-align: center;
+  border-radius: var(--raio);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s, transform .25s;
+}
+
+.aviso.mostrar{
+  opacity: 1;
+  transform: translate(-50%, 0);
+}

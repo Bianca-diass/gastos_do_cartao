@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GASTOS DO CARTÃO - JORGE GONZAGA </title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topo">
+  <p class="boas-vindas">BEM-VINDO, JORGE GONZAGA</p>
+  <h1>GASTOS DO CARTÃO</h1>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>📩 Cole aqui as mensagens SMS</h2>
+    <textarea id="sms" placeholder="Cole aqui os SMS do cartão"></textarea>
+    <button onclick="adicionar()">➕ Adicionar</button>
+  </div>
+
+  <div class="card">
+    <h2>📅 Mês</h2>
+    <select id="mes" onchange="render()"></select>
+    <div class="rotulo-total">Total gasto</div>
+    <div class="total" id="total">R$ 0,00</div>
+    <button class="ok" onclick="baixarExtrato()">⬇️ Baixar extrato (PDF)</button>
+    <button class="zap" onclick="enviarWhatsApp()">📲 Enviar por WhatsApp</button>
+  </div>
+
+  <div class="card">
+    <h2>🧾 Gastos</h2>
+    <div id="lista"></div>
+    <button class="sec" onclick="limpar()">🗑️ Limpar</button>
+  </div>
+
+</div>
+
+<div id="aviso" class="aviso"></div>
+
+<script>
+const KEY = "gastos_cartao";
+const NOMES_MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+let dados = [];
+try { dados = JSON.parse(localStorage.getItem(KEY)) || []; } catch(e) { dados = []; }
+
+const brl = n => n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const salvar = () => localStorage.setItem(KEY, JSON.stringify(dados));
+const nomeMes = ym => NOMES_MESES[+ym.slice(5)-1] + "/" + ym.slice(0,4);
+
+// Data de hoje no horário do celular (yyyy-mm-dd)
+function hojeISO(){
+  const h = new Date();
+  return h.getFullYear() + "-" + String(h.getMonth()+1).padStart(2,"0") + "-" + String(h.getDate()).padStart(2,"0");
+}
+
+// Opção que já vem selecionada ao abrir o site: "Todos os meses"
+// (para voltar ao mês atual, troque por: hojeISO().slice(0,7))
+const MES_ATUAL = "todos";
+
+// Quando preenchido, o próximo render() seleciona esse mês automaticamente
+let forcarMes = null;
+
+// Aviso verde que aparece na tela por alguns segundos
+let avisoTimer;
+function mostrarAviso(texto){
+  const el = document.getElementById("aviso");
+  el.textContent = texto;
+  el.classList.add("mostrar");
+  clearTimeout(avisoTimer);
+  avisoTimer = setTimeout(()=>el.classList.remove("mostrar"), 4000);
+}
+
+function extrairData(txt){
+  const hoje = new Date();
+  // 1º: a data da compra, que vem depois da palavra "em" (ex.: "em 14/10/2026")
+  let m = txt.match(/\bem\s+(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/i);
+  // 2º: se não achar, qualquer data no texto
+  if(!m) m = txt.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+  if(m){
+    let d=+m[1], mes=+m[2], a=m[3]?+m[3]:hoje.getFullYear();
+    if(a<100) a+=2000;
+    if(d>=1&&d<=31&&mes>=1&&mes<=12)
+      return `${a}-${String(mes).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  }
+  return hojeISO();
+}
+
+// Lê o valor da compra: "valor RS 15,53" (ou R$). Ignora o "Limite Disponivel".
+function extrairValor(msg){
+  const num = "([\\d.]*\\d,\\d{2})";
+  let m = msg.match(new RegExp("valor\\s*R[S$]\\s*" + num, "i"));
+  if(!m) m = msg.match(new RegExp("R[S$]\\s*" + num, "i"));
+  if(!m) return null;
+  const v = parseFloat(m[1].replace(/\./g,"").replace(",","."));
+  return isNaN(v) ? null : v;
+}
+
+function adicionar(){
+  let texto = document.getElementById("sms").value;
+  // remove o prefixo do WhatsApp: "[19:32, 20/11/2026] Bia:"
+  texto = texto.replace(/\[\d{1,2}:\d{2},\s*\d{1,2}\/\d{1,2}\/\d{2,4}\]\s*[^:\n]*:\s*/g, "");
+  // separa as mensagens por quebra de linha ou pelo início de cada "Compra ..."
+  const msgs = texto.split(/\n+|(?=Compra\s)/i).map(s=>s.trim()).filter(Boolean);
+  const mesesAdicionados = new Set();
+  let n = 0;
+  for(const msg of msgs){
+    // só aceita compras: ignora pagamento de fatura e outras mensagens
+    if(!/compra\s+aprovada/i.test(msg)) continue;
+    const valor = extrairValor(msg);
+    if(valor === null) continue;
+    // ignora mensagem idêntica que já foi adicionada antes
+    if(dados.some(d => d.texto === msg)) continue;
+    const data = extrairData(msg);
+    dados.push({id:Date.now()+Math.random(), valor, data, texto:msg});
+    mesesAdicionados.add(data.slice(0,7));
+    n++;
+  }
+  if(!n){ alert("Não encontrei nenhuma compra nova no texto (pagamentos e mensagens repetidas são ignorados)."); return; }
+  document.getElementById("sms").value = "";
+  // seleciona sozinho o mês das compras (ou "todos" se forem de meses diferentes)
+  forcarMes = mesesAdicionados.size === 1 ? [...mesesAdicionados][0] : "todos";
+  salvar(); render();
+}
+
+function remover(id){ dados = dados.filter(d=>d.id!==id); salvar(); render(); }
+
+function limpar(){
+  const mes = document.getElementById("mes").value;
+  const msg = mes==="todos"
+    ? "Apagar TODOS os gastos de todos os meses?"
+    : "Apagar os gastos de " + nomeMes(mes) + "?";
+  if(!confirm(msg)) return;
+  dados = mes==="todos" ? [] : dados.filter(d=>!d.data.startsWith(mes));
+  salvar(); render();
+}
+
+function filtrados(){
+  const mes = document.getElementById("mes").value;
+  return dados.filter(d => mes==="todos" || d.data.startsWith(mes))
+              .sort((a,b)=>b.data.localeCompare(a.data));
+}
+
+/* ===== PDF (feito direto no código, sem biblioteca) ===== */
+
+function pdfTexto(t){ return String(t).replace(/[^\x20-\xFF]/g,"?").replace(/[\\()]/g,"\\$&"); }
+
+// Texto curto para a coluna "Descrição" do PDF
+function descricaoPDF(texto){
+  const m = texto.match(/final\s*(\d+)\s*-?\s*(.*?)\s+valor/i);
+  const d = m ? "Final " + m[1] + (m[2] ? " - " + m[2] : "") : texto;
+  return d.length > 38 ? d.slice(0,38) : d;
+}
+
+function gerarPDF(titulo, cabecalho, itens, totalTxt){
+  const paginas = [];
+  let ops = [], y = 0;
+  const txt = (t, x, yy, tam, neg) => ops.push(`BT /${neg?"F2":"F1"} ${tam} Tf ${x} ${yy} Td (${pdfTexto(t)}) Tj ET`);
+  const linha = yy => ops.push(`0.5 w 40 ${yy} m 555 ${yy} l S`);
+  const cabTabela = () => {
+    txt("Data", 40, y, 15, true); txt("Descrição", 140, y, 15, true); txt("Valor", 455, y, 15, true);
+    linha(y-8); y -= 30;
+  };
+  const novaPagina = () => {
+    if(ops.length) paginas.push(ops);
+    ops = []; y = 800;
+  };
+  novaPagina();
+  txt(titulo, 40, y, 24, true); y -= 34;
+  for(const c of cabecalho){
+    if(c.startsWith("Período")){ y -= 8; txt(c, 40, y, 24, true); y -= 34; }
+    else { txt(c, 40, y, 16, false); y -= 24; }
+  }
+  y -= 12;
+  cabTabela();
+  for(const it of itens){
+    if(y < 90){ novaPagina(); cabTabela(); }
+    txt(it[0], 40, y, 15, false);
+    txt(it[1], 140, y, 15, false);
+    txt(it[2], 455, y, 15, true);
+    y -= 28;
+  }
+  if(y < 110){ novaPagina(); }
+  linha(y+14); y -= 18;
+  txt("TOTAL", 40, y, 22, true);
+  txt(totalTxt, 405, y, 22, true);
+  paginas.push(ops);
+
+  paginas.forEach((p,i) => p.push(`BT /F1 11 Tf 40 30 Td (${pdfTexto("Página " + (i+1) + " de " + paginas.length)}) Tj ET`));
+
+  const objs = [];
+  const kids = paginas.map((_,i)=> (5+2*i) + " 0 R").join(" ");
+  objs[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objs[2] = `<< /Type /Pages /Kids [${kids}] /Count ${paginas.length} >>`;
+  objs[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
+  objs[4] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>";
+  paginas.forEach((p,i) => {
+    const conteudo = p.join("\n");
+    objs[5+2*i] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${6+2*i} 0 R >>`;
+    objs[6+2*i] = `<< /Length ${conteudo.length} >>\nstream\n${conteudo}\nendstream`;
+  });
+
+  let out = "%PDF-1.4\n";
+  const pos = [];
+  for(let k=1; k<objs.length; k++){
+    pos[k] = out.length;
+    out += `${k} 0 obj\n${objs[k]}\nendobj\n`;
+  }
+  const xref = out.length;
+  out += `xref\n0 ${objs.length}\n0000000000 65535 f \n`;
+  for(let k=1; k<objs.length; k++) out += String(pos[k]).padStart(10,"0") + " 00000 n \n";
+  out += `trailer\n<< /Size ${objs.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return Uint8Array.from(out, c => c.charCodeAt(0));
+}
+
+// Monta o extrato do mês selecionado em PDF. Retorna null se não houver gastos.
+function montarExtrato(){
+  const lista = filtrados();
+  if(!lista.length){ alert("Não há gastos para baixar."); return null; }
+  const mes = document.getElementById("mes").value;
+  const periodo = mes==="todos" ? "Todos os meses" : nomeMes(mes);
+  const total = lista.reduce((s,d)=>s+d.valor,0);
+  const hoje = hojeISO().split("-").reverse().join("/");
+  const itens = lista.map(d => [d.data.split("-").reverse().join("/"), descricaoPDF(d.texto), brl(d.valor)]);
+  const bytes = gerarPDF(
+    "Extrato de Gastos do Cartão",
+    ["Jorge Gonzaga", "Período: " + periodo, "Gerado em " + hoje + " - " + lista.length + " compra(s)"],
+    itens,
+    brl(total)
+  );
+  const nome = "extrato-" + (mes==="todos" ? "geral" : mes) + ".pdf";
+  return { blob: new Blob([bytes], {type:"application/pdf"}), nome, periodo, total };
+}
+
+function baixarExtrato(){
+  const ex = montarExtrato();
+  if(!ex) return;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(ex.blob);
+  a.download = ex.nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  mostrarAviso("EXTRATO BAIXADO COM SUCESSO!");
+}
+
+// Número que recebe o extrato no WhatsApp (55 + DDD + número)
+const WHATSAPP_NUMERO = "5567999155644";
+
+// Baixa o PDF e abre o WhatsApp direto na conversa com o número já preenchido
+function enviarWhatsApp(){
+  const ex = montarExtrato();
+  if(!ex) return;
+  const mensagem = "Extrato do cartão - " + ex.periodo + "\nTotal: " + brl(ex.total);
+  baixarExtrato();
+  window.open("https://wa.me/" + WHATSAPP_NUMERO + "?text=" + encodeURIComponent(mensagem), "_blank");
+  alert("O PDF foi baixado. No WhatsApp, toque no clipe 📎 e anexe o arquivo " + ex.nome + ".");
+}
+
+function render(){
+  const sel = document.getElementById("mes");
+  // prioridade: mês forçado pelo "Adicionar" > mês que o usuário escolheu > mês atual
+  const atual = forcarMes || sel.value || MES_ATUAL;
+  forcarMes = null;
+
+  // 12 meses do ano atual + qualquer mês que já tenha gastos
+  const ano = new Date().getFullYear();
+  const meses = new Set(dados.map(d=>d.data.slice(0,7)));
+  for(let i=1;i<=12;i++) meses.add(ano + "-" + String(i).padStart(2,"0"));
+  const ordenados = [...meses].sort();
+
+  sel.innerHTML = '<option value="todos">Todos os meses</option>' +
+    ordenados.map(m=>`<option value="${m}">${nomeMes(m)}</option>`).join("");
+  sel.value = (atual==="todos" || meses.has(atual)) ? atual : "todos";
+
+  const lista = filtrados();
+  document.getElementById("total").textContent = brl(lista.reduce((s,d)=>s+d.valor,0));
+  document.getElementById("lista").innerHTML = lista.length ? lista.map(d=>`
+    <div class="item">
+      <div><span>${d.data.split("-").reverse().join("/")}</span>
+        <small>${d.texto.replace(/</g,"&lt;").slice(0,80)}</small></div>
+      <div><span class="val">${brl(d.valor)}</span>
+        <button class="del" onclick="remover(${d.id})">✕</button></div>
+    </div>`).join("") : "<em>Nenhum gasto neste período.</em>";
+}
+render();
+</script>
+</body>
+</html>
